@@ -1,0 +1,246 @@
+{
+  "_format": "hh3-artifact-1",
+  "contractName": "AuditLogger",
+  "sourceName": "contracts/AuditLogger.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "EmptyAction",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidAddress",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "Unauthorized",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "actor",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "source",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "action",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "resourceType",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "resourceId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "bool",
+          "name": "success",
+          "type": "bool"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "timestamp",
+          "type": "uint256"
+        }
+      ],
+      "name": "AuditRecorded",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "logger",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "authorizedBy",
+          "type": "address"
+        }
+      ],
+      "name": "LoggerAuthorized",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "logger",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "revokedBy",
+          "type": "address"
+        }
+      ],
+      "name": "LoggerRevoked",
+      "type": "event"
+    },
+    {
+      "inputs": [],
+      "name": "admin",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "logger",
+          "type": "address"
+        }
+      ],
+      "name": "authorizeLogger",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "authorizedLogger",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "logger",
+          "type": "address"
+        }
+      ],
+      "name": "isAuthorizedLogger",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "actor",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "action",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "resourceType",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "resourceId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bool",
+          "name": "success",
+          "type": "bool"
+        }
+      ],
+      "name": "recordAudit",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "logger",
+          "type": "address"
+        }
+      ],
+      "name": "revokeLogger",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x60a0604052348015600e575f5ffd5b503373ffffffffffffffffffffffffffffffffffffffff1660808173ffffffffffffffffffffffffffffffffffffffff16815250506080516108e66100695f395f81816102e601528181610480015261066c01526108e65ff3fe608060405234801561000f575f5ffd5b5060043610610060575f3560e01c80638517d02214610064578063a1630fee14610094578063b16b1e2d146100b0578063bcfa3f30146100cc578063e1437f0f146100e8578063f851a44014610118575b5f5ffd5b61007e600480360381019061007991906106ec565b610136565b60405161008b9190610731565b60405180910390f35b6100ae60048036038101906100a991906107a7565b610152565b005b6100ca60048036038101906100c591906106ec565b6102e4565b005b6100e660048036038101906100e191906106ec565b61047e565b005b61010260048036038101906100fd91906106ec565b610619565b60405161010f9190610731565b60405180910390f35b61012061066a565b60405161012d919061082d565b60405180910390f35b5f602052805f5260405f205f915054906101000a900460ff1681565b5f5f3373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020015f205f9054906101000a900460ff166101d1576040517f82b4290000000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b5f73ffffffffffffffffffffffffffffffffffffffff168573ffffffffffffffffffffffffffffffffffffffff1603610236576040517fe6c4247b00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b5f5f1b8403610271576040517f9c5a561f00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b833373ffffffffffffffffffffffffffffffffffffffff168673ffffffffffffffffffffffffffffffffffffffff167f7d9ddb1a9e394514e75863a8ccf80290eecf0e6806a021ec9e0a435e8fe825e1868686426040516102d5949392919061086d565b60405180910390a45050505050565b7f000000000000000000000000000000000000000000000000000000000000000073ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614610369576040517f82b4290000000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b5f73ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff16036103ce576040517fe6c4247b00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b5f5f5f8373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020015f205f6101000a81548160ff0219169083151502179055503373ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff167f2f065eb04d25377e4014325d440ece4b39a8e81c4089072d15116ee7f57f66aa60405160405180910390a350565b7f000000000000000000000000000000000000000000000000000000000000000073ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614610503576040517f82b4290000000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b5f73ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff1603610568576040517fe6c4247b00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b60015f5f8373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020015f205f6101000a81548160ff0219169083151502179055503373ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff167f8fe17c5b35bcdfadd3c5db0d29ed9681258cbe5df9451be9b3d84349974da4db60405160405180910390a350565b5f5f5f8373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020015f205f9054906101000a900460ff169050919050565b7f000000000000000000000000000000000000000000000000000000000000000081565b5f5ffd5b5f73ffffffffffffffffffffffffffffffffffffffff82169050919050565b5f6106bb82610692565b9050919050565b6106cb816106b1565b81146106d5575f5ffd5b50565b5f813590506106e6816106c2565b92915050565b5f602082840312156107015761070061068e565b5b5f61070e848285016106d8565b91505092915050565b5f8115159050919050565b61072b81610717565b82525050565b5f6020820190506107445f830184610722565b92915050565b5f819050919050565b61075c8161074a565b8114610766575f5ffd5b50565b5f8135905061077781610753565b92915050565b61078681610717565b8114610790575f5ffd5b50565b5f813590506107a18161077d565b92915050565b5f5f5f5f5f60a086880312156107c0576107bf61068e565b5b5f6107cd888289016106d8565b95505060206107de88828901610769565b94505060406107ef88828901610769565b935050606061080088828901610769565b925050608061081188828901610793565b9150509295509295909350565b610827816106b1565b82525050565b5f6020820190506108405f83018461081e565b92915050565b61084f8161074a565b82525050565b5f819050919050565b61086781610855565b82525050565b5f6080820190506108805f830187610846565b61088d6020830186610846565b61089a6040830185610722565b6108a7606083018461085e565b9594505050505056fea26469706673582212206351b26f37b173458e535b1bbd748df70bebc2bcca7fdc8b45aaed8b9b94eab464736f6c63430008220033",
+  "deployedBytecode": "0x608060405234801561000f575f5ffd5b5060043610610060575f3560e01c80638517d02214610064578063a1630fee14610094578063b16b1e2d146100b0578063bcfa3f30146100cc578063e1437f0f146100e8578063f851a44014610118575b5f5ffd5b61007e600480360381019061007991906106ec565b610136565b60405161008b9190610731565b60405180910390f35b6100ae60048036038101906100a991906107a7565b610152565b005b6100ca60048036038101906100c591906106ec565b6102e4565b005b6100e660048036038101906100e191906106ec565b61047e565b005b61010260048036038101906100fd91906106ec565b610619565b60405161010f9190610731565b60405180910390f35b61012061066a565b60405161012d919061082d565b60405180910390f35b5f602052805f5260405f205f915054906101000a900460ff1681565b5f5f3373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020015f205f9054906101000a900460ff166101d1576040517f82b4290000000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b5f73ffffffffffffffffffffffffffffffffffffffff168573ffffffffffffffffffffffffffffffffffffffff1603610236576040517fe6c4247b00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b5f5f1b8403610271576040517f9c5a561f00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b833373ffffffffffffffffffffffffffffffffffffffff168673ffffffffffffffffffffffffffffffffffffffff167f7d9ddb1a9e394514e75863a8ccf80290eecf0e6806a021ec9e0a435e8fe825e1868686426040516102d5949392919061086d565b60405180910390a45050505050565b7f000000000000000000000000000000000000000000000000000000000000000073ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614610369576040517f82b4290000000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b5f73ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff16036103ce576040517fe6c4247b00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b5f5f5f8373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020015f205f6101000a81548160ff0219169083151502179055503373ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff167f2f065eb04d25377e4014325d440ece4b39a8e81c4089072d15116ee7f57f66aa60405160405180910390a350565b7f000000000000000000000000000000000000000000000000000000000000000073ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614610503576040517f82b4290000000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b5f73ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff1603610568576040517fe6c4247b00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b60015f5f8373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020015f205f6101000a81548160ff0219169083151502179055503373ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff167f8fe17c5b35bcdfadd3c5db0d29ed9681258cbe5df9451be9b3d84349974da4db60405160405180910390a350565b5f5f5f8373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020015f205f9054906101000a900460ff169050919050565b7f000000000000000000000000000000000000000000000000000000000000000081565b5f5ffd5b5f73ffffffffffffffffffffffffffffffffffffffff82169050919050565b5f6106bb82610692565b9050919050565b6106cb816106b1565b81146106d5575f5ffd5b50565b5f813590506106e6816106c2565b92915050565b5f602082840312156107015761070061068e565b5b5f61070e848285016106d8565b91505092915050565b5f8115159050919050565b61072b81610717565b82525050565b5f6020820190506107445f830184610722565b92915050565b5f819050919050565b61075c8161074a565b8114610766575f5ffd5b50565b5f8135905061077781610753565b92915050565b61078681610717565b8114610790575f5ffd5b50565b5f813590506107a18161077d565b92915050565b5f5f5f5f5f60a086880312156107c0576107bf61068e565b5b5f6107cd888289016106d8565b95505060206107de88828901610769565b94505060406107ef88828901610769565b935050606061080088828901610769565b925050608061081188828901610793565b9150509295509295909350565b610827816106b1565b82525050565b5f6020820190506108405f83018461081e565b92915050565b61084f8161074a565b82525050565b5f819050919050565b61086781610855565b82525050565b5f6080820190506108805f830187610846565b61088d6020830186610846565b61089a6040830185610722565b6108a7606083018461085e565b9594505050505056fea26469706673582212206351b26f37b173458e535b1bbd748df70bebc2bcca7fdc8b45aaed8b9b94eab464736f6c63430008220033",
+  "linkReferences": {},
+  "deployedLinkReferences": {},
+  "immutableReferences": {
+    "8436": [
+      {
+        "length": 32,
+        "start": 742
+      },
+      {
+        "length": 32,
+        "start": 1152
+      },
+      {
+        "length": 32,
+        "start": 1644
+      }
+    ]
+  },
+  "inputSourceName": "project/contracts/AuditLogger.sol",
+  "buildInfoId": "solc-0_8_34-64aec584952b548b10dceeeba4f06b6329f1421e"
+}
