@@ -6,7 +6,10 @@ import Topbar from "../components/layout/Topbar";
 import StatCard from "../components/ui/StatCard";
 import StatusBadge from "../components/ui/StatusBadge";
 import { getAuditEvents } from "../services/audit";
-import type { AuditEvent } from "../types/api";
+import { getResources } from "../services/resources";
+import { getSecurityCenter } from "../services/security";
+import { getSecurityIncidents } from "../services/security";
+import type { AuditEvent, SecurityIncident, SecuritySummary } from "../types/api";
 
 function ShieldIcon() {
   return (
@@ -35,7 +38,7 @@ function PolicyIcon() {
   );
 }
 
-function AssetIcon() {
+function ResourceIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" />
@@ -63,12 +66,23 @@ function ArrowIcon() {
 function Dashboard() {
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [auditLoading, setAuditLoading] = useState(true);
+  const [summary, setSummary] = useState<SecuritySummary | null>(null);
+  const [resourceCount, setResourceCount] = useState<number | null>(null);
+  const [incidents, setIncidents] = useState<SecurityIncident[]>([]);
 
   useEffect(() => {
-    async function loadAuditEvents() {
+    async function loadDashboard() {
       try {
-        const response = await getAuditEvents();
-        setEvents(response.events);
+        const [audit, security, resources, incidentResponse] = await Promise.all([
+          getAuditEvents(),
+          getSecurityCenter(),
+          getResources(),
+          getSecurityIncidents(),
+        ]);
+        setEvents(audit.events);
+        setSummary(security.summary);
+        setResourceCount(resources.count);
+        setIncidents(incidentResponse.incidents);
       } catch (error) {
         console.error("Failed to load audit events:", error);
       } finally {
@@ -76,8 +90,15 @@ function Dashboard() {
       }
     }
 
-    loadAuditEvents();
+    loadDashboard();
   }, []);
+
+  const latestIncident = incidents[0];
+  const suspendedCount = incidents.filter((incident) => incident.suspended).length;
+  const currentRisk = latestIncident && (latestIncident.severity === "Critical" || latestIncident.severity === "High")
+    ? latestIncident
+    : null;
+  const accessDecisions = summary ? summary.blocked_requests + summary.events_reviewed : null;
 
   return (
     <div className="app-shell">
@@ -91,68 +112,88 @@ function Dashboard() {
             <div>
               <div className="eyebrow">CONTROL PLANE</div>
 
-              <h1>Security overview</h1>
+              <h1>TrustMesh security posture</h1>
 
               <p>
-                Monitor identity, access policies, assets, and security
-                activity from one place.
+                A live operating view across identity, access, risk, and audit.
               </p>
             </div>
 
             <div className="dashboard-status">
               <span className="status-pulse" />
-              <span>TrustLayer operational</span>
+              <span>TrustMesh operational</span>
             </div>
           </section>
 
-          <section className="stats-grid dashboard-stats">
+          <section className="stats-grid dashboard-stats dashboard-posture-stats">
             <StatCard
-              label="IDENTITIES"
-              value="—"
-              detail="Awaiting identity index"
+              label="ACTIVE IDENTITIES"
+              value="Ready"
+              detail="DID verification available"
               icon={<IdentityIcon />}
-              state="neutral"
+              state="ready"
             />
 
             <StatCard
-              label="ACTIVE POLICIES"
-              value="—"
-              detail="PolicyEngine pending"
+              label="ACCESS DECISIONS"
+              value={accessDecisions === null ? "Ready" : String(accessDecisions)}
+              detail={accessDecisions === null ? "Policy authorization available" : "Indexed authorization outcomes"}
               icon={<PolicyIcon />}
-              state="pending"
+              state="ready"
             />
 
             <StatCard
-              label="DIGITAL ASSETS"
-              value="—"
-              detail="Asset index pending"
-              icon={<AssetIcon />}
-              state="neutral"
+              label="PROTECTED RESOURCES"
+              value={resourceCount === null ? "Ready" : String(resourceCount)}
+              detail="Protected resources"
+              icon={<ResourceIcon />}
+              state="ready"
             />
 
             <StatCard
-              label="SECURITY EVENTS"
-              value={auditLoading ? "…" : String(events.length)}
+              label="ACTIVE INCIDENTS"
+              value={summary === null ? "Ready" : incidents.length === 0 ? "None" : String(incidents.length)}
               detail={
-                auditLoading
-                  ? "Loading audit index"
-                  : events.length === 0
-                    ? "No indexed events"
-                    : "Indexed blockchain events"
+                summary === null ? "Incident monitoring available" : incidents.length === 0 ? "No active incidents" : "Open security incidents"
               }
               icon={<ActivityIcon />}
-              state={auditLoading ? "neutral" : "ready"}
+              state="ready"
             />
+
+            <StatCard
+              label="SUSPENDED IDENTITIES"
+              value={summary === null ? "Ready" : suspendedCount === 0 ? "None" : String(suspendedCount)}
+              detail={summary === null ? "Adaptive response available" : suspendedCount === 0 ? "No suspended identities" : "Restricted by adaptive response"}
+              icon={<ShieldIcon />}
+              state="ready"
+            />
+
+            <StatCard
+              label="RECENT SECURITY EVENTS"
+              value={auditLoading ? "Loading" : events.length === 0 ? "None" : String(events.length)}
+              detail={auditLoading ? "Reading audit telemetry" : events.length === 0 ? "No recent violations" : "Indexed security events"}
+              icon={<ActivityIcon />}
+              state="ready"
+            />
+          </section>
+
+          <section className="dashboard-risk-banner">
+            <div>
+              <span className="panel-kicker">SECURITY POSTURE</span>
+              <strong>{currentRisk ? currentRisk.severity.toUpperCase() : "LOW RISK"}{currentRisk && <small>{currentRisk.risk_score}/100</small>}</strong>
+              <span>{currentRisk ? "Active threat requires investigation" : "No active threats detected"}</span>
+            </div>
+            <Link className="secondary-action" to="/security">Open Security Center<ArrowIcon /></Link>
           </section>
 
           <section className="content-grid dashboard-content">
             <div className="panel activity-panel">
               <div className="panel-header">
                 <div>
-                  <div className="panel-kicker">ACTIVITY</div>
-                  <h2>Recent security events</h2>
+                  <div className="panel-kicker">AUDIT / LIVE</div>
+                  <h2>Live security activity</h2>
                   <p className="panel-description">
-                    Latest events observed by the TrustLayer audit pipeline.
+                    Latest evidence observed by the TrustMesh audit pipeline.
                   </p>
                 </div>
 
@@ -229,10 +270,10 @@ function Dashboard() {
                 <div>
                   <div className="panel-kicker">SECURITY</div>
 
-                  <h2>Protection status</h2>
+                  <h2>TrustMesh security layers</h2>
 
                   <p className="panel-description">
-                    Core TrustLayer protection layers.
+                    Independent controls working across the platform.
                   </p>
                 </div>
 
@@ -244,7 +285,7 @@ function Dashboard() {
               <div className="security-list">
                 <div className="security-row">
                   <div>
-                    <strong>Identity layer</strong>
+                    <strong>Identity</strong>
                     <span>DID verification</span>
                   </div>
 
@@ -253,8 +294,8 @@ function Dashboard() {
 
                 <div className="security-row">
                   <div>
-                    <strong>Policy engine</strong>
-                    <span>Access decisions</span>
+                    <strong>Access Control</strong>
+                    <span>PolicyEngine authorization</span>
                   </div>
 
                   <StatusBadge>Ready</StatusBadge>
@@ -262,20 +303,20 @@ function Dashboard() {
 
                 <div className="security-row">
                   <div>
-                    <strong>Audit pipeline</strong>
-                    <span>Event indexing</span>
+                    <strong>Audit</strong>
+                    <span>Immutable security events</span>
                   </div>
 
-                  <StatusBadge variant="warning">Pending</StatusBadge>
+                  <StatusBadge>Active</StatusBadge>
                 </div>
 
                 <div className="security-row">
                   <div>
-                    <strong>AI security agent</strong>
-                    <span>Threat analysis</span>
+                    <strong>Adaptive Security</strong>
+                    <span>Risk-based response</span>
                   </div>
 
-                  <StatusBadge variant="neutral">Offline</StatusBadge>
+                  <StatusBadge>Active</StatusBadge>
                 </div>
               </div>
 

@@ -79,6 +79,9 @@ export interface SecurityEvent {
   resource: string;
   status: string;
   description: string;
+  attack_type?: string;
+  action?: string;
+  decision?: string;
 }
 
 export interface SecuritySummary {
@@ -88,11 +91,56 @@ export interface SecuritySummary {
   events_reviewed: number;
 }
 
+export interface SecurityIncident {
+  incident_id: string;
+  identity: string;
+  role: string;
+  attack_type: string;
+  threat_type: string;
+  resource: string;
+  action: string;
+  violations: number;
+  risk_score: number;
+  severity: string;
+  decision: string;
+  suspended: boolean;
+  created_at: string | null;
+  timeline: Array<{
+    stage: string;
+    timestamp: string;
+  }>;
+  evidence: Array<{
+    event_id: string;
+    event: string;
+    reason: string;
+    synthetic: boolean;
+  }>;
+  response_metrics?: {
+    attack_to_restriction_ms: number;
+    detection_latency_ms: number;
+    restriction_latency_ms: number;
+    measured_from: string;
+  };
+}
+
 export interface SecurityResponse {
   service: string;
   status: string;
   summary: SecuritySummary;
   events: SecurityEvent[];
+  incidents?: SecurityIncident[];
+}
+
+export interface SecurityCopilotResponse {
+  status: string;
+  provider: string;
+  incident_id?: string;
+  analysis?: string;
+  what_happened?: string;
+  why_suspicious?: string;
+  evidence?: Array<Record<string, unknown>>;
+  risk_explanation?: string;
+  recommendation: string;
 }
 
 export interface RecoveryRequest {
@@ -119,23 +167,6 @@ export interface RecoveryResponse {
   requests: RecoveryRequest[];
 }
 
-export interface SecurityEvent {
-  event_id: string;
-  event_type: string;
-  severity: string;
-  subject: string;
-  resource: string;
-  status: string;
-  description: string;
-}
-
-export interface SecuritySummary {
-  security_score: number;
-  active_alerts: number;
-  blocked_requests: number;
-  events_reviewed: number;
-}
-
 export interface SecurityFinding {
   event_id: string;
   event_name: string;
@@ -151,13 +182,6 @@ export interface SecurityFindingsResponse {
   status: string;
   count: number;
   findings: SecurityFinding[];
-}
-
-export interface SecurityResponse {
-  service: string;
-  status: string;
-  summary: SecuritySummary;
-  events: SecurityEvent[];
 }
 
 export interface RiskGraphNode {
@@ -182,4 +206,13 @@ export interface RiskGraphResponse {
   };
   nodes: RiskGraphNode[];
   links: RiskGraphLink[];
+  behavior?: {
+    score: number;
+    detected: boolean;
+    state: string;
+  };
+  trust?: {
+    score: number;
+    state: string;
+  };
 }

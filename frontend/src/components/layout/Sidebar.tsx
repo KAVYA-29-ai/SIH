@@ -15,9 +15,9 @@ const navigation: Array<{
   path: string;
   icon: IconName;
 }> = [
-  { label: "Overview", path: "/dashboard", icon: "overview" },
-  { label: "Identities", path: "/identities", icon: "identity" },
-  { label: "Policies", path: "/policies", icon: "policy" },
+  { label: "Dashboard", path: "/dashboard", icon: "overview" },
+  { label: "Identity", path: "/identities", icon: "identity" },
+  { label: "Access Control", path: "/policies", icon: "policy" },
   { label: "Resources", path: "/resources", icon: "resource" },
   { label: "Assets", path: "/assets", icon: "asset" },
   { label: "Audit Log", path: "/audit", icon: "audit" },
@@ -104,7 +104,7 @@ function Sidebar() {
         </div>
 
         <div className="brand-copy">
-          <div className="brand-name">TrustLayer</div>
+          <div className="brand-name">TrustMesh</div>
           <div className="brand-subtitle">Security Infrastructure</div>
         </div>
       </div>
@@ -126,6 +126,17 @@ function Sidebar() {
             <span>{item.label}</span>
           </NavLink>
         ))}
+
+        <div className="nav-label nav-label-secondary">INTELLIGENCE</div>
+        <NavLink
+          to="/ai-security"
+          className={({ isActive }) =>
+            `nav-item nav-item-security ${isActive ? "active" : ""}`
+          }
+        >
+          <span className="nav-icon"><NavIcon name="security" /></span>
+          <span>AI Security</span>
+        </NavLink>
       </nav>
 
       <div className="sidebar-footer">

@@ -30,8 +30,8 @@ function Topbar() {
         </button>
 
         <div className="wallet-chip">
-          <span className="wallet-status" aria-hidden="true" />
-          <span>Not connected</span>
+          <span className="wallet-status wallet-status-ready" aria-hidden="true" />
+          <span>TrustMesh platform</span>
         </div>
 
         <button className="avatar" aria-label="Account">
