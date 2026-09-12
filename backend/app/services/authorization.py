@@ -16,16 +16,20 @@ class AuthorizationService:
 
     async def check_access(
         self,
+        org_id: str,
         subject: str,
+        role: str,
         resource_id: str,
         action: str,
     ) -> bool:
-        """Check whether a subject has permission for a resource/action."""
+        """Check access through the on-chain PolicyEngine."""
+        del role
+        org_hash = self._identifier_hash(org_id)
         resource_hash = self._identifier_hash(resource_id)
-        action_hash = self._identifier_hash(action)
 
         return await self.policy_engine.has_permission(
+            org_hash,
             subject,
             resource_hash,
-            action_hash,
+            action,
         )

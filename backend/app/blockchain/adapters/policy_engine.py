@@ -14,11 +14,12 @@ class PolicyEngineAdapter:
     def _contract_config(self):
         return self.client.require_contract(self.CONTRACT_NAME)
 
-    async def get_user_role(self, subject: str) -> bytes:
+    async def get_user_role(self, org_id: bytes, subject: str) -> bytes:
         """Return the role assigned to an address."""
         return await self.client.call(
             self._contract_config(),
-            "getUserRole",
+            "roleAssignments",
+            org_id,
             subject,
         )
 
@@ -32,26 +33,29 @@ class PolicyEngineAdapter:
 
     async def has_permission(
         self,
+        org_id: bytes,
         subject: str,
         resource_id: bytes,
-        action_id: bytes,
+        action: str,
     ) -> bool:
-        """Perform a read-only permission check."""
+        """Perform the contract's read-only authorization check."""
         return bool(
             await self.client.call(
                 self._contract_config(),
-                "hasPermission",
+                "checkAccess",
+                org_id,
                 subject,
                 resource_id,
-                action_id,
+                action,
             )
         )
 
     async def check_access(
         self,
+        org_id: bytes,
         subject: str,
         resource_id: bytes,
-        action_id: bytes,
+        action: str,
     ) -> Any:
         """
         Execute the PolicyEngine access-check transaction.
@@ -63,7 +67,8 @@ class PolicyEngineAdapter:
         contract = self.client.contract(contract_config)
 
         return getattr(contract.functions, "checkAccess")(
+            org_id,
             subject,
             resource_id,
-            action_id,
+            action,
         )

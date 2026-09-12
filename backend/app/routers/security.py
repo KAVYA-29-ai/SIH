@@ -9,6 +9,7 @@ from app.services.security import security_service
 from app.services.security_agent import security_agent
 from app.services.security_repository import security_finding_repository
 from app.indexer.service import indexer_service
+from app.services.security_workflow import security_workflow
 
 router = APIRouter()
 
@@ -22,6 +23,9 @@ def serialize_event(event) -> dict:
         "resource": event.resource,
         "status": event.status,
         "description": event.description,
+        "attack_type": event.attack_type,
+        "action": event.action,
+        "decision": event.decision,
     }
 
 
@@ -37,6 +41,7 @@ async def get_security_center() -> dict:
             serialize_event(event)
             for event in events
         ],
+        "incidents": security_workflow.list_incidents(),
     }
 
 
@@ -101,6 +106,27 @@ async def list_security_findings() -> dict:
             for finding in findings
         ],
     }
+
+
+@router.get("/incidents")
+async def list_incidents() -> dict:
+    incidents = security_workflow.list_incidents()
+    return {
+        "service": "incident-response",
+        "status": "ready",
+        "count": len(incidents),
+        "incidents": incidents,
+    }
+
+
+@router.get("/copilot")
+async def get_copilot_analysis() -> dict:
+    return security_workflow.copilot()
+
+
+@router.get("/workflow-graph")
+async def get_workflow_graph() -> dict:
+    return security_workflow.graph()
 
 @router.post("/events/ingest")
 async def ingest_security_event(event: BlockchainEvent) -> dict:

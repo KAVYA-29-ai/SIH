@@ -14,11 +14,15 @@ class BlockchainClient:
         rpc_url: str | None = None,
         expected_chain_id: int | None = None,
     ) -> None:
-        self.rpc_url = rpc_url or settings.polygon_amoy_rpc_url
+        self.rpc_url = (
+            rpc_url
+            or settings.trustmesh_rpc_url
+            or settings.polygon_amoy_rpc_url
+        )
         self.expected_chain_id = (
             expected_chain_id
             if expected_chain_id is not None
-            else settings.polygon_chain_id
+            else settings.trustmesh_chain_id or settings.polygon_chain_id
         )
         self.web3 = Web3(Web3.HTTPProvider(self.rpc_url))
 

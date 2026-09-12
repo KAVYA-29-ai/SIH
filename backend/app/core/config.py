@@ -1,4 +1,8 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pathlib import Path
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
 class Settings(BaseSettings):
@@ -18,6 +22,10 @@ class Settings(BaseSettings):
     polygon_amoy_rpc_url: str = "https://polygon-amoy-bor-rpc.publicnode.com"
     polygon_chain_id: int = 80002
 
+    trustmesh_local: bool = False
+    trustmesh_rpc_url: str | None = None
+    trustmesh_chain_id: int | None = None
+
     deployer_private_key: str | None = None
     did_registry_address: str | None = None
     policy_engine_address: str | None = None
@@ -32,7 +40,11 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(
+            REPOSITORY_ROOT / "backend" / ".env",
+            REPOSITORY_ROOT / ".env",
+            REPOSITORY_ROOT / "deployment" / "local.env",
+        ),
         env_file_encoding="utf-8",
         extra="ignore",
     )

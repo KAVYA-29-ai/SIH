@@ -11,6 +11,7 @@ from app.routers import (
     assets,
     audit,
     auth,
+    demo,
     recovery,
     resources,
     security,
@@ -54,6 +55,12 @@ app.include_router(
     access.router,
     prefix="/access",
     tags=["Access Control"],
+)
+
+app.include_router(
+    demo.router,
+    prefix="/demo",
+    tags=["Local Demo"],
 )
 
 app.include_router(

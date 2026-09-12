@@ -12,6 +12,9 @@ class SecurityEvent:
     resource: str
     status: str
     description: str
+    attack_type: str
+    action: str
+    decision: str
 
 
 class SecurityService:
@@ -47,6 +50,9 @@ class SecurityService:
                     resource=resource,
                     status=status,
                     description=description,
+                    attack_type=str(data.get("attack_type", "Policy event")),
+                    action=str(data.get("action", "Unknown")),
+                    decision=str(data.get("decision", "UNKNOWN")),
                 )
             )
 

@@ -9,6 +9,7 @@ class ServiceStatus(BaseModel):
 class AccessCheckRequest(BaseModel):
     org_id: str = Field(min_length=1)
     did: str = Field(min_length=1)
+    role: str = Field(default="User", min_length=1)
     resource_id: str = Field(min_length=1)
     action: str = Field(min_length=1)
 
@@ -16,6 +17,7 @@ class AccessCheckRequest(BaseModel):
 class AccessCheckResponse(BaseModel):
     allowed: bool
     reason: str
+    role: str = "Unknown"
 
 
 class SIWEMessageRequest(BaseModel):
