@@ -21,26 +21,25 @@ function Assets() {
   const [registering, setRegistering] = useState(false);
   const [registerError, setRegisterError] = useState("");
 
+  async function loadAssets() {
+    try {
+      setError("");
+      const response = await getAssets();
+      setAssets(response.assets);
+    } catch (error) {
+      console.error("Failed to load assets:", error);
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load assets.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function loadAssets() {
-      try {
-        setError("");
-        const response = await getAssets();
-        setAssets(response.assets);
-      } catch (error) {
-        console.error("Failed to load assets:", error);
-        setError(
-          error instanceof Error
-            ? error.message
-            : "Unable to load assets.",
-        );
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadAssets();
+    void loadAssets();
   }, []);
 
   const filteredAssets = useMemo(() => {
@@ -61,10 +60,7 @@ function Assets() {
     (asset) => asset.status === "Protected",
   ).length;
 
-  const typeCount = new Set(
-    assets.map((asset) => asset.asset_type),
-  ).size;
-
+  const typeCount = new Set(assets.map((asset) => asset.asset_type)).size;
 
   const handleRegisterAsset = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -96,9 +92,9 @@ function Assets() {
       setAssetType("Digital Record");
       setAccessLevel("Developer");
       setPolicy("Default Policy");
-
-      const refreshed = await getAssets();
-      setAssets(refreshed.assets);
+      setRegisterError("");
+      setLoading(true);
+      await loadAssets();
     } catch (error) {
       setRegisterError(
         error instanceof Error ? error.message : "Unable to register asset.",
@@ -121,8 +117,7 @@ function Assets() {
               <div className="eyebrow">DIGITAL ASSET MANAGEMENT</div>
               <h1>Assets</h1>
               <p>
-                Manage digital assets and enforce policy-controlled
-                access across TrustLayer.
+                Manage digital assets and enforce policy-controlled access across TrustLayer.
               </p>
             </div>
 
@@ -135,14 +130,8 @@ function Assets() {
                 <span className="stat-label">TOTAL ASSETS</span>
                 <span className="stat-icon"><Icon name="asset" /></span>
               </div>
-
-              <div className="stat-value">
-                {loading ? "…" : assets.length}
-              </div>
-
-              <div className="stat-detail">
-                Registered digital assets
-              </div>
+              <div className="stat-value">{loading ? "…" : assets.length}</div>
+              <div className="stat-detail">Registered digital assets</div>
             </div>
 
             <div className="stat-card">
@@ -150,14 +139,8 @@ function Assets() {
                 <span className="stat-label">ACTIVE</span>
                 <span className="stat-icon"><Icon name="check" /></span>
               </div>
-
-              <div className="stat-value">
-                {loading ? "…" : activeCount}
-              </div>
-
-              <div className="stat-detail">
-                Assets currently active
-              </div>
+              <div className="stat-value">{loading ? "…" : activeCount}</div>
+              <div className="stat-detail">Assets currently active</div>
             </div>
 
             <div className="stat-card">
@@ -165,14 +148,8 @@ function Assets() {
                 <span className="stat-label">PROTECTED</span>
                 <span className="stat-icon"><Icon name="shield" /></span>
               </div>
-
-              <div className="stat-value">
-                {loading ? "…" : protectedCount}
-              </div>
-
-              <div className="stat-detail">
-                Assets under policy control
-              </div>
+              <div className="stat-value">{loading ? "…" : protectedCount}</div>
+              <div className="stat-detail">Assets under policy control</div>
             </div>
 
             <div className="stat-card">
@@ -180,14 +157,8 @@ function Assets() {
                 <span className="stat-label">ASSET TYPES</span>
                 <span className="stat-icon"><Icon name="database" /></span>
               </div>
-
-              <div className="stat-value">
-                {loading ? "…" : typeCount}
-              </div>
-
-              <div className="stat-detail">
-                Registered asset categories
-              </div>
+              <div className="stat-value">{loading ? "…" : typeCount}</div>
+              <div className="stat-detail">Registered asset categories</div>
             </div>
           </section>
 
@@ -198,7 +169,14 @@ function Assets() {
                 <h2>Digital assets</h2>
               </div>
 
-              <button type="button" className="primary-action">
+              <button
+                type="button"
+                className="primary-action"
+                onClick={() => {
+                  setRegisterError("");
+                  setShowRegisterModal(true);
+                }}
+              >
                 + Register asset
               </button>
             </div>
@@ -206,7 +184,6 @@ function Assets() {
             <div className="identity-toolbar">
               <div className="identity-search">
                 <span className="search-icon"><Icon name="search" /></span>
-
                 <input
                   type="text"
                   placeholder="Search assets..."
@@ -216,11 +193,7 @@ function Assets() {
                 />
               </div>
 
-              <button
-                type="button"
-                className="filter-button"
-                aria-label="Filter assets"
-              >
+              <button type="button" className="filter-button" aria-label="Filter assets">
                 All assets
                 <span className="filter-chevron">⌄</span>
               </button>
@@ -229,28 +202,23 @@ function Assets() {
             {loading ? (
               <div className="resource-empty" aria-live="polite">
                 <div className="empty-icon"><Icon name="asset" /></div>
-
                 <h3>Loading assets</h3>
-
-                <p>
-                  Reading the TrustLayer asset registry.
-                </p>
+                <p>Reading the TrustLayer asset registry.</p>
               </div>
             ) : error ? (
               <div className="resource-empty resource-error" role="alert">
                 <div className="empty-icon"><Icon name="shield" /></div>
                 <h3>Assets unavailable</h3>
                 <p>{error}</p>
+                <button type="button" className="secondary-action" onClick={() => { setLoading(true); void loadAssets(); }}>
+                  Retry
+                </button>
               </div>
             ) : filteredAssets.length === 0 ? (
               <div className="resource-empty">
                 <div className="empty-icon"><Icon name="search" /></div>
-
                 <h3>No assets found</h3>
-
-                <p>
-                  Try a different asset, owner, or policy name.
-                </p>
+                <p>Try a different asset, owner, or policy name.</p>
               </div>
             ) : (
               <div className="asset-table">
@@ -264,36 +232,21 @@ function Assets() {
                 </div>
 
                 {filteredAssets.map((asset) => (
-                  <div
-                    className="asset-row"
-                    key={asset.asset_id}
-                  >
+                  <div className="asset-row" key={asset.asset_id}>
                     <div className="asset-primary">
                       <span className="asset-icon"><Icon name="asset" /></span>
-
                       <div>
                         <strong>{asset.name}</strong>
                         <span>{asset.asset_id}</span>
                       </div>
                     </div>
-
-                    <span className="asset-type">
-                      {asset.asset_type}
-                    </span>
-
+                    <span className="asset-type">{asset.asset_type}</span>
                     <div className="asset-owner">
                       <strong>{asset.owner}</strong>
                       <span>Identity owner</span>
                     </div>
-
-                    <span className="asset-policy">
-                      {asset.policy}
-                    </span>
-
-                    <span className="asset-access">
-                      {asset.access_level}
-                    </span>
-
+                    <span className="asset-policy">{asset.policy}</span>
+                    <span className="asset-access">{asset.access_level}</span>
                     <StatusBadge>{asset.status}</StatusBadge>
                   </div>
                 ))}
@@ -313,26 +266,14 @@ function Assets() {
             }
           }}
         >
-          <section
-            className="asset-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="register-asset-title"
-          >
+          <section className="asset-modal" role="dialog" aria-modal="true" aria-labelledby="register-asset-title">
             <div className="asset-modal-header">
               <div>
                 <span className="eyebrow">Asset registry</span>
                 <h2 id="register-asset-title">Register asset</h2>
                 <p>Add a protected digital asset to TrustLayer.</p>
               </div>
-
-              <button
-                type="button"
-                className="asset-modal-close"
-                aria-label="Close register asset dialog"
-                disabled={registering}
-                onClick={() => setShowRegisterModal(false)}
-              >
+              <button type="button" className="asset-modal-close" aria-label="Close register asset dialog" disabled={registering} onClick={() => setShowRegisterModal(false)}>
                 ×
               </button>
             </div>
@@ -341,43 +282,24 @@ function Assets() {
               <div className="asset-form-grid">
                 <label>
                   Asset name
-                  <input
-                    value={assetName}
-                    onChange={(event) => setAssetName(event.target.value)}
-                    placeholder="e.g. Research Dataset"
-                    required
-                    autoFocus
-                  />
+                  <input value={assetName} onChange={(event) => setAssetName(event.target.value)} placeholder="e.g. Research Dataset" required autoFocus />
                 </label>
-
                 <label>
                   Owner DID
-                  <input
-                    value={ownerDid}
-                    onChange={(event) => setOwnerDid(event.target.value)}
-                    placeholder="did:ethr:0x..."
-                  />
+                  <input value={ownerDid} onChange={(event) => setOwnerDid(event.target.value)} placeholder="did:ethr:0x..." />
                 </label>
-
                 <label>
                   Asset type
-                  <select
-                    value={assetType}
-                    onChange={(event) => setAssetType(event.target.value)}
-                  >
+                  <select value={assetType} onChange={(event) => setAssetType(event.target.value)}>
                     <option>Digital Record</option>
                     <option>Dataset</option>
                     <option>Digital Certificate</option>
                     <option>Access Credential</option>
                   </select>
                 </label>
-
                 <label>
                   Access level
-                  <select
-                    value={accessLevel}
-                    onChange={(event) => setAccessLevel(event.target.value)}
-                  >
+                  <select value={accessLevel} onChange={(event) => setAccessLevel(event.target.value)}>
                     <option>Developer</option>
                     <option>User</option>
                     <option>Manager</option>
@@ -385,38 +307,19 @@ function Assets() {
                     <option>Administrator</option>
                   </select>
                 </label>
-
                 <label className="asset-form-full">
                   Policy
-                  <input
-                    value={policy}
-                    onChange={(event) => setPolicy(event.target.value)}
-                    placeholder="Default Policy"
-                  />
+                  <input value={policy} onChange={(event) => setPolicy(event.target.value)} placeholder="Default Policy" />
                 </label>
               </div>
 
-              {registerError && (
-                <div className="asset-form-error" role="alert">
-                  {registerError}
-                </div>
-              )}
+              {registerError && <div className="asset-form-error" role="alert">{registerError}</div>}
 
               <div className="asset-modal-actions">
-                <button
-                  type="button"
-                  className="secondary-action"
-                  disabled={registering}
-                  onClick={() => setShowRegisterModal(false)}
-                >
+                <button type="button" className="secondary-action" disabled={registering} onClick={() => setShowRegisterModal(false)}>
                   Cancel
                 </button>
-
-                <button
-                  type="submit"
-                  className="primary-action"
-                  disabled={registering}
-                >
+                <button type="submit" className="primary-action" disabled={registering}>
                   {registering ? "Registering…" : "Register asset"}
                 </button>
               </div>
