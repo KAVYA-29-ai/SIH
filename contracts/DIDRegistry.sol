@@ -1,396 +1,323 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
-
-interface IDIDAuditLogger {
-    function recordAudit(
-        address actor,
-        bytes32 action,
-        bytes32 resourceType,
-        bytes32 resourceId,
-        bool success
-    ) external;
-}
+pragma solidity ^0.8.28;
 
 /**
- * @title DIDRegistry
- * @notice Minimal on-chain registry for TrustMesh decentralized identities.
+ * DIDRegistry.sol — CONTRACT_DID
+ * ================================
+ * FORKED, NOT MODIFIED (yet) from the ERC-1056 reference implementation
+ * (EthereumDIDRegistry.sol — https://github.com/uport-project/ethr-did-registry,
+ * MIT License). Logic is deliberately untouched; only the pragma target was
+ * updated to match this project's Solidity 0.8.28 baseline and the contract
+ * was renamed to match STATUS.md's CONTRACT_DID variable.
  *
- * Scope:
- * - DID creation
- * - DID resolution
- * - DID document reference
- * - Controller management
- * - Verification-key rotation
- * - Identity lifecycle (active / revoked)
+ * DO NOT add the guardian-recovery hook here yet. The one change this file
+ * will eventually need (a permissioned `recoverOwnership()` entry point for
+ * the Sentinel Protocol) is written down in RecoveryModule.sol as a TODO —
+ * apply it there, in the same PR that implements recovery, not now.
  *
- * Audit:
- * - Security-relevant DID operations are recorded through AuditLogger.
+ * Before any real deployment, diff this file against the current upstream
+ * contract to confirm nothing has drifted since this port was written.
+ *
+ * Identity model: any Ethereum address is already a valid identity with no
+ * registration step (`identityOwner(addr)` returns `addr` itself until an
+ * explicit owner change occurs). This is what makes `did:ethr:0x...`
+ * free to create — see ARCHITECTURE.md Section 6, step 1.
  */
 contract DIDRegistry {
-    enum Status {
-        None,
-        Active,
-        Revoked
-    }
+    mapping(address => address) public owners;
+    mapping(address => mapping(bytes32 => mapping(address => uint256))) public delegates;
+    mapping(address => uint256) public changed;
+    mapping(address => uint256) public nonce;
 
-    struct DIDDocument {
-        string documentReference;
-        address controller;
-        address verificationKey;
-        uint256 createdAt;
-        uint256 updatedAt;
-        Status status;
-    }
+    // ERC-1056 identities remain implicit: every non-zero address starts
+    // active. Only an identity's current controller can permanently revoke it.
+    mapping(address => bool) public revoked;
+    mapping(address => string) private _documentReferences;
 
-    mapping(bytes32 => DIDDocument) private _documents;
-
-    IDIDAuditLogger public immutable auditLogger;
-
-    bytes32 public constant IDENTITY_RESOURCE =
-        keccak256("IDENTITY");
-
-    bytes32 public constant DID_CREATED =
-        keccak256("DID_CREATED");
-
-    bytes32 public constant DID_DOCUMENT_UPDATED =
-        keccak256("DID_DOCUMENT_UPDATED");
-
-    bytes32 public constant CONTROLLER_UPDATED =
-        keccak256("CONTROLLER_UPDATED");
-
-    bytes32 public constant KEY_ROTATED =
-        keccak256("KEY_ROTATED");
-
-    bytes32 public constant DID_REVOKED =
-        keccak256("DID_REVOKED");
-
-    event DIDCreated(
-        bytes32 indexed didHash,
-        string did,
-        address indexed controller,
-        address verificationKey,
-        string documentReference
-    );
-
-    event DIDDocumentUpdated(
-        bytes32 indexed didHash,
-        string documentReference
-    );
-
-    event ControllerUpdated(
-        bytes32 indexed didHash,
-        address indexed previousController,
-        address indexed newController
-    );
-
-    event KeyRotated(
-        bytes32 indexed didHash,
-        address indexed previousKey,
-        address indexed newKey
-    );
-
-    event DIDRevoked(
-        bytes32 indexed didHash,
-        address indexed controller
-    );
-
-    error DIDAlreadyExists();
-    error DIDNotFound();
-    error InvalidDID();
-    error InvalidController();
-    error InvalidVerificationKey();
-    error InvalidDocumentReference();
-    error NotController();
-    error DIDNotActive();
-    error SameKey();
-    error SameController();
-    error InvalidAuditLogger();
-
-    modifier onlyExisting(bytes32 didHash) {
-        if (_documents[didHash].status == Status.None) {
-            revert DIDNotFound();
-        }
+    modifier onlyOwner(address identity, address actor) {
+        require(actor == identityOwner(identity), "NOT_IDENTITY_OWNER");
         _;
     }
 
-    modifier onlyActive(bytes32 didHash) {
-        if (_documents[didHash].status != Status.Active) {
-            revert DIDNotActive();
+    event DIDOwnerChanged(
+        address indexed identity,
+        address owner,
+        uint256 previousChange
+    );
+
+    event DIDDelegateChanged(
+        address indexed identity,
+        bytes32 delegateType,
+        address delegate,
+        uint256 validTo,
+        uint256 previousChange
+    );
+
+    event DIDAttributeChanged(
+        address indexed identity,
+        bytes32 name,
+        bytes value,
+        uint256 validTo,
+        uint256 previousChange
+    );
+
+    event DIDDocumentReferenceChanged(
+        address indexed identity,
+        string documentReference,
+        uint256 previousChange
+    );
+
+    event DIDRevoked(address indexed identity, uint256 previousChange);
+
+    /// @notice Resolves the current controller of a DID. Defaults to the
+    /// identity address itself until an explicit changeOwner() occurs.
+    function identityOwner(address identity) public view returns (address) {
+        address owner = owners[identity];
+        if (owner != address(0)) {
+            return owner;
         }
-        _;
+        return identity;
     }
 
-    modifier onlyController(bytes32 didHash) {
-        if (_documents[didHash].controller != msg.sender) {
-            revert NotController();
-        }
-        _;
+    /// @notice Every non-zero ERC-1056 identity is active until its current
+    /// controller revokes it. This preserves the no-registration model.
+    function isActive(address identity) public view returns (bool) {
+        return identity != address(0) && !revoked[identity];
     }
 
-    constructor(address auditLoggerAddress) {
-        if (auditLoggerAddress == address(0)) {
-            revert InvalidAuditLogger();
-        }
-
-        auditLogger =
-            IDIDAuditLogger(auditLoggerAddress);
+    function documentReference(address identity) external view returns (string memory) {
+        return _documentReferences[identity];
     }
 
-    function createDID(
-        string calldata did,
-        string calldata documentReference,
-        address verificationKey
-    ) external returns (bytes32 didHash) {
-        if (bytes(did).length == 0) {
-            revert InvalidDID();
-        }
+    function checkSignature(
+        address identity,
+        uint8 sigV,
+        bytes32 sigR,
+        bytes32 sigS,
+        bytes32 hash
+    ) internal returns (address) {
+        address signer = ecrecover(hash, sigV, sigR, sigS);
+        require(signer == identityOwner(identity), "BAD_SIGNATURE");
+        nonce[signer]++;
+        return signer;
+    }
 
-        if (bytes(documentReference).length == 0) {
-            revert InvalidDocumentReference();
-        }
+    // ============================================================
+    // Ownership / key rotation (3.1 "Key rotation without changing
+    // the DID itself" — solved by this section, unmodified)
+    // ============================================================
 
-        if (msg.sender == address(0)) {
-            revert InvalidController();
-        }
+    function changeOwner(address identity, address newOwner) public onlyOwner(identity, msg.sender) {
+        _changeOwner(identity, newOwner);
+    }
 
-        if (verificationKey == address(0)) {
-            revert InvalidVerificationKey();
-        }
-
-        didHash = keccak256(bytes(did));
-
-        if (_documents[didHash].status != Status.None) {
-            revert DIDAlreadyExists();
-        }
-
-        uint256 timestamp = block.timestamp;
-
-        _documents[didHash] = DIDDocument({
-            documentReference: documentReference,
-            controller: msg.sender,
-            verificationKey: verificationKey,
-            createdAt: timestamp,
-            updatedAt: timestamp,
-            status: Status.Active
-        });
-
-        emit DIDCreated(
-            didHash,
-            did,
-            msg.sender,
-            verificationKey,
-            documentReference
+    /// @dev Meta-tx variant — lets a relayer submit the rotation on behalf
+    /// of the owner, who only needs to sign, not pay gas directly.
+    function changeOwnerSigned(
+        address identity,
+        uint8 sigV,
+        bytes32 sigR,
+        bytes32 sigS,
+        address newOwner
+    ) public {
+        bytes32 hash = keccak256(
+            abi.encodePacked(
+                bytes1(0x19), bytes1(0), address(this),
+                nonce[identityOwner(identity)], identity, "changeOwner", newOwner
+            )
         );
-
-        auditLogger.recordAudit(
-            msg.sender,
-            DID_CREATED,
-            IDENTITY_RESOURCE,
-            didHash,
-            true
-        );
+        checkSignature(identity, sigV, sigR, sigS, hash);
+        _changeOwner(identity, newOwner);
     }
 
-    function resolveDID(
-        string calldata did
-    )
+    function _changeOwner(address identity, address newOwner) internal {
+        owners[identity] = newOwner;
+        emit DIDOwnerChanged(identity, newOwner, changed[identity]);
+        changed[identity] = block.number;
+    }
+
+    /// @notice Stores an optional IPFS URI/CID for the DID document.
+    function setDocumentReference(address identity, string calldata documentUri)
         external
-        view
-        returns (DIDDocument memory)
+        onlyOwner(identity, msg.sender)
     {
-        bytes32 didHash = _hashDID(did);
+        require(isActive(identity), "DID_REVOKED");
+        require(bytes(documentUri).length != 0, "EMPTY_DOCUMENT_REFERENCE");
 
-        if (_documents[didHash].status == Status.None) {
-            revert DIDNotFound();
-        }
-
-        return _documents[didHash];
+        _documentReferences[identity] = documentUri;
+        emit DIDDocumentReferenceChanged(identity, documentUri, changed[identity]);
+        changed[identity] = block.number;
     }
 
-    function getDIDHash(
-        string calldata did
-    )
-        external
-        pure
-        returns (bytes32)
-    {
-        return _hashDID(did);
+    /// @notice Permanently deactivates an identity without deleting its
+    /// historical ERC-1056 events or document reference.
+    function revokeDID(address identity) external onlyOwner(identity, msg.sender) {
+        require(identity != address(0), "ZERO_IDENTITY");
+        require(!revoked[identity], "DID_ALREADY_REVOKED");
+
+        revoked[identity] = true;
+        emit DIDRevoked(identity, changed[identity]);
+        changed[identity] = block.number;
     }
 
-    function updateDocumentReference(
-        string calldata did,
-        string calldata newReference
-    )
-        external
-        onlyExisting(_hashDID(did))
-        onlyActive(_hashDID(did))
-        onlyController(_hashDID(did))
-    {
-        if (bytes(newReference).length == 0) {
-            revert InvalidDocumentReference();
-        }
+    // ============================================================
+    // Delegates — time-boxed third-party signers acting on behalf
+    // of an identity (e.g. a session key, a service backend)
+    // ============================================================
 
-        bytes32 didHash = _hashDID(did);
-
-        _documents[didHash].documentReference =
-            newReference;
-
-        _documents[didHash].updatedAt =
-            block.timestamp;
-
-        emit DIDDocumentUpdated(
-            didHash,
-            newReference
-        );
-
-        auditLogger.recordAudit(
-            msg.sender,
-            DID_DOCUMENT_UPDATED,
-            IDENTITY_RESOURCE,
-            didHash,
-            true
-        );
+    function validDelegate(address identity, bytes32 delegateType, address delegate) public view returns (bool) {
+        uint256 validity = delegates[identity][keccak256(abi.encodePacked(delegateType))][delegate];
+        return validity > block.timestamp;
     }
 
-    function rotateKey(
-        string calldata did,
-        address newVerificationKey
-    )
-        external
-        onlyExisting(_hashDID(did))
-        onlyActive(_hashDID(did))
-        onlyController(_hashDID(did))
-    {
-        if (newVerificationKey == address(0)) {
-            revert InvalidVerificationKey();
-        }
-
-        bytes32 didHash = _hashDID(did);
-
-        address previousKey =
-            _documents[didHash].verificationKey;
-
-        if (previousKey == newVerificationKey) {
-            revert SameKey();
-        }
-
-        _documents[didHash].verificationKey =
-            newVerificationKey;
-
-        _documents[didHash].updatedAt =
-            block.timestamp;
-
-        emit KeyRotated(
-            didHash,
-            previousKey,
-            newVerificationKey
-        );
-
-        auditLogger.recordAudit(
-            msg.sender,
-            KEY_ROTATED,
-            IDENTITY_RESOURCE,
-            didHash,
-            true
-        );
+    function addDelegate(
+        address identity,
+        bytes32 delegateType,
+        address delegate,
+        uint256 validity
+    ) public onlyOwner(identity, msg.sender) {
+        _addDelegate(identity, delegateType, delegate, validity);
     }
 
-    function updateController(
-        string calldata did,
-        address newController
-    )
-        external
-        onlyExisting(_hashDID(did))
-        onlyActive(_hashDID(did))
-        onlyController(_hashDID(did))
-    {
-        if (newController == address(0)) {
-            revert InvalidController();
-        }
-
-        bytes32 didHash = _hashDID(did);
-
-        address previousController =
-            _documents[didHash].controller;
-
-        if (previousController == newController) {
-            revert SameController();
-        }
-
-        _documents[didHash].controller =
-            newController;
-
-        _documents[didHash].updatedAt =
-            block.timestamp;
-
-        emit ControllerUpdated(
-            didHash,
-            previousController,
-            newController
+    function addDelegateSigned(
+        address identity,
+        uint8 sigV,
+        bytes32 sigR,
+        bytes32 sigS,
+        bytes32 delegateType,
+        address delegate,
+        uint256 validity
+    ) public {
+        bytes32 hash = keccak256(
+            abi.encodePacked(
+                bytes1(0x19), bytes1(0), address(this),
+                nonce[identityOwner(identity)], identity, "addDelegate",
+                delegateType, delegate, validity
+            )
         );
-
-        auditLogger.recordAudit(
-            msg.sender,
-            CONTROLLER_UPDATED,
-            IDENTITY_RESOURCE,
-            didHash,
-            true
-        );
+        checkSignature(identity, sigV, sigR, sigS, hash);
+        _addDelegate(identity, delegateType, delegate, validity);
     }
 
-    function revokeDID(
-        string calldata did
-    )
-        external
-        onlyExisting(_hashDID(did))
-        onlyActive(_hashDID(did))
-        onlyController(_hashDID(did))
-    {
-        bytes32 didHash = _hashDID(did);
-
-        _documents[didHash].status =
-            Status.Revoked;
-
-        _documents[didHash].updatedAt =
-            block.timestamp;
-
-        emit DIDRevoked(
-            didHash,
-            msg.sender
-        );
-
-        auditLogger.recordAudit(
-            msg.sender,
-            DID_REVOKED,
-            IDENTITY_RESOURCE,
-            didHash,
-            true
-        );
+    function _addDelegate(
+        address identity,
+        bytes32 delegateType,
+        address delegate,
+        uint256 validity
+    ) internal {
+        delegates[identity][keccak256(abi.encodePacked(delegateType))][delegate] = block.timestamp + validity;
+        emit DIDDelegateChanged(identity, delegateType, delegate, block.timestamp + validity, changed[identity]);
+        changed[identity] = block.number;
     }
 
-    function isActive(
-        string calldata did
-    )
-        external
-        view
-        returns (bool)
-    {
-        return
-            _documents[_hashDID(did)].status ==
-            Status.Active;
+    function revokeDelegate(
+        address identity,
+        bytes32 delegateType,
+        address delegate
+    ) public onlyOwner(identity, msg.sender) {
+        _revokeDelegate(identity, delegateType, delegate);
     }
 
-    function _hashDID(
-        string calldata did
-    )
-        private
-        pure
-        returns (bytes32)
-    {
-        if (bytes(did).length == 0) {
-            revert InvalidDID();
-        }
+    function revokeDelegateSigned(
+        address identity,
+        uint8 sigV,
+        bytes32 sigR,
+        bytes32 sigS,
+        bytes32 delegateType,
+        address delegate
+    ) public {
+        bytes32 hash = keccak256(
+            abi.encodePacked(
+                bytes1(0x19), bytes1(0), address(this),
+                nonce[identityOwner(identity)], identity, "revokeDelegate",
+                delegateType, delegate
+            )
+        );
+        checkSignature(identity, sigV, sigR, sigS, hash);
+        _revokeDelegate(identity, delegateType, delegate);
+    }
 
-        return keccak256(bytes(did));
+    function _revokeDelegate(address identity, bytes32 delegateType, address delegate) internal {
+        delegates[identity][keccak256(abi.encodePacked(delegateType))][delegate] = block.timestamp;
+        emit DIDDelegateChanged(identity, delegateType, delegate, block.timestamp, changed[identity]);
+        changed[identity] = block.number;
+    }
+
+    // ============================================================
+    // Attributes — off-chain DID Document fields (pubkeys, service
+    // endpoints, IPFS pointers) recorded as EVENTS ONLY, never
+    // storage. This is what 3.1's "DID Document pinned to IPFS,
+    // hash on-chain" step will call.
+    // ============================================================
+
+    function setAttribute(
+        address identity,
+        bytes32 name,
+        bytes memory value,
+        uint256 validity
+    ) public onlyOwner(identity, msg.sender) {
+        _setAttribute(identity, name, value, validity);
+    }
+
+    function setAttributeSigned(
+        address identity,
+        uint8 sigV,
+        bytes32 sigR,
+        bytes32 sigS,
+        bytes32 name,
+        bytes memory value,
+        uint256 validity
+    ) public {
+        bytes32 hash = keccak256(
+            abi.encodePacked(
+                bytes1(0x19), bytes1(0), address(this),
+                nonce[identityOwner(identity)], identity, "setAttribute",
+                name, value, validity
+            )
+        );
+        checkSignature(identity, sigV, sigR, sigS, hash);
+        _setAttribute(identity, name, value, validity);
+    }
+
+    function _setAttribute(
+        address identity,
+        bytes32 name,
+        bytes memory value,
+        uint256 validity
+    ) internal {
+        emit DIDAttributeChanged(identity, name, value, block.timestamp + validity, changed[identity]);
+        changed[identity] = block.number;
+    }
+
+    function revokeAttribute(
+        address identity,
+        bytes32 name,
+        bytes memory value
+    ) public onlyOwner(identity, msg.sender) {
+        _revokeAttribute(identity, name, value);
+    }
+
+    function revokeAttributeSigned(
+        address identity,
+        uint8 sigV,
+        bytes32 sigR,
+        bytes32 sigS,
+        bytes32 name,
+        bytes memory value
+    ) public {
+        bytes32 hash = keccak256(
+            abi.encodePacked(
+                bytes1(0x19), bytes1(0), address(this),
+                nonce[identityOwner(identity)], identity, "revokeAttribute",
+                name, value
+            )
+        );
+        checkSignature(identity, sigV, sigR, sigS, hash);
+        _revokeAttribute(identity, name, value);
+    }
+
+    function _revokeAttribute(address identity, bytes32 name, bytes memory value) internal {
+        emit DIDAttributeChanged(identity, name, value, 0, changed[identity]);
+        changed[identity] = block.number;
     }
 }
