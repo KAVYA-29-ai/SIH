@@ -37,7 +37,11 @@ class Settings(BaseSettings):
     azure_openai_api_version: str = "2024-10-21"
     azure_openai_deployment: str | None = None
 
-    cors_origins: str = "http://localhost:5173"
+    cors_origins: str = (
+        "http://localhost:5173,"
+        "http://127.0.0.1:5173,"
+        "https://congenial-space-guacamole-697jjppv94r5c4jg5-5173.app.github.dev"
+    )
 
     model_config = SettingsConfigDict(
         env_file=(
