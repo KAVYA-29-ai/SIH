@@ -80,7 +80,7 @@ describe("TrustMesh Smart Contract Security", function () {
       );
 
     auditLogger =
-      await AuditLogger.deploy();
+      await AuditLogger.deploy(adminAddress);
 
     await auditLogger.waitForDeployment();
 
@@ -94,9 +94,7 @@ describe("TrustMesh Smart Contract Security", function () {
       );
 
     didRegistry =
-      await DIDRegistry.deploy(
-        auditLoggerAddress
-      );
+      await DIDRegistry.deploy();
 
     await didRegistry.waitForDeployment();
 
@@ -111,7 +109,7 @@ describe("TrustMesh Smart Contract Security", function () {
 
     policyEngine =
       await PolicyEngine.deploy(
-        auditLoggerAddress
+        adminAddress
       );
 
     await policyEngine.waitForDeployment();
@@ -127,32 +125,33 @@ describe("TrustMesh Smart Contract Security", function () {
 
     assetNFT =
       await AssetNFT.deploy(
-        adminAddress,
-        didRegistryAddress,
         policyEngineAddress,
+        didRegistryAddress,
         auditLoggerAddress
       );
 
     await assetNFT.waitForDeployment();
 
     // 5. Authorize TrustMesh contracts
-    await auditLogger.authorizeLogger(
-      didRegistryAddress
+    await auditLogger.setEmitterAuthorized(
+      didRegistryAddress,
+      true
     );
 
-    await auditLogger.authorizeLogger(
-      policyEngineAddress
+    await auditLogger.setEmitterAuthorized(
+      policyEngineAddress,
+      true
     );
 
-    await auditLogger.authorizeLogger(
-      await assetNFT.getAddress()
+    await auditLogger.setEmitterAuthorized(
+      await assetNFT.getAddress(),
+      true
     );
 
-    // 6. Create test DID
-    await didRegistry.createDID(
-      DID,
-      "ipfs://security-did-document",
-      adminAddress
+    // 6. Configure the implicit ERC-1056 DID
+    await didRegistry.setDocumentReference(
+      adminAddress,
+      "ipfs://security-did-document"
     );
   });
 
